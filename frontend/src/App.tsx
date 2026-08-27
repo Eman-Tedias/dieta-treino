@@ -1,7 +1,8 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChatPanel } from "./components/ChatPanel";
 import { DashboardPanel } from "./components/DashboardPanel";
-import { sendMessage, artifactSrc, OVERVIEW_URL } from "./api";
+import { LoginScreen } from "./components/LoginScreen";
+import { sendMessage, artifactSrc, getSession, login, OVERVIEW_URL } from "./api";
 import type { ChatMessage } from "./types";
 
 function newId(): string {
@@ -16,10 +17,22 @@ const WELCOME_MESSAGE: ChatMessage = {
 
 export default function App() {
   const threadId = useRef(newId());
+  const [authed, setAuthed] = useState<boolean | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
   const [sending, setSending] = useState(false);
   const [dashboardUrl, setDashboardUrl] = useState<string>(OVERVIEW_URL);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getSession()
+      .then((s) => setAuthed(s.authenticated))
+      .catch(() => setAuthed(false));
+  }, []);
+
+  async function handleLogin(password: string) {
+    await login(password);
+    setAuthed(true);
+  }
 
   async function handleSend(text: string) {
     setError(null);
@@ -36,6 +49,18 @@ export default function App() {
     } finally {
       setSending(false);
     }
+  }
+
+  if (authed === null) {
+    return (
+      <div className="boot">
+        <span className="spinner" />
+      </div>
+    );
+  }
+
+  if (!authed) {
+    return <LoginScreen onSubmit={handleLogin} />;
   }
 
   return (

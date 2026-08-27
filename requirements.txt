@@ -7,4 +7,5 @@ langchain-google-genai==4.3.5
 langgraph==1.2.11
 pydantic==2.13.4
 harpy @ git+https://github.com/Eman-Tedias/harpy.git@8721e333b0239b7f7e2f5951f4b9a1f58733e5d5
+google-cloud-storage==3.13.1
 pytest==9.1.1

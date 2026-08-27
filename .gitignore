@@ -1,5 +1,6 @@
 .venv/
 .env
+.env.production
 frontend/.env
 runs/
 .pytest_cache/

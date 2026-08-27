@@ -1,5 +1,6 @@
 import json
 import math
+import os
 import re
 import sqlite3
 import time
@@ -20,6 +21,63 @@ DB_PATH = BASE_DIR / "data" / "treino_dieta.db"
 ARTIFACTS_DIR = BASE_DIR / "artifacts"
 ARTIFACTS_DB_PATH = BASE_DIR / "data" / "artifacts.db"
 RUNS_DIR = BASE_DIR / "runs"
+
+BUCKET_NAME = os.environ.get("BUCKET_NAME")
+
+
+def _bucket():
+    from google.cloud import storage as gcs
+
+    return gcs.Client().bucket(BUCKET_NAME)
+
+
+def sync_from_bucket() -> None:
+    """Downloads treino_dieta.db, artifacts.db and artifacts/*.html from the
+    GCS bucket to local disk. No-op if BUCKET_NAME isn't set (local dev).
+    Call once at app startup, before serving any requests, since Cloud Run's
+    local filesystem is wiped on every cold start.
+
+    treino_dieta.db is read-only for the app (only the local ETL writes it),
+    so its "upload" side isn't sync_to_bucket, it's you manually running
+    `gcloud storage cp data/treino_dieta.db gs://<bucket>/treino_dieta.db`
+    after regenerating it locally.
+    """
+    if not BUCKET_NAME:
+        return
+
+    ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
+    ARTIFACTS_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    bucket = _bucket()
+
+    main_db_blob = bucket.blob("treino_dieta.db")
+    if main_db_blob.exists():
+        main_db_blob.download_to_filename(str(DB_PATH))
+
+    db_blob = bucket.blob("artifacts.db")
+    if db_blob.exists():
+        db_blob.download_to_filename(str(ARTIFACTS_DB_PATH))
+
+    for blob in bucket.list_blobs(prefix="artifacts/"):
+        if blob.name.endswith(".html"):
+            blob.download_to_filename(str(ARTIFACTS_DIR / Path(blob.name).name))
+
+
+def sync_to_bucket() -> None:
+    """Uploads artifacts.db and artifacts/*.html to the GCS bucket. No-op if
+    BUCKET_NAME isn't set (local dev). Call after any write to either.
+    """
+    if not BUCKET_NAME:
+        return
+
+    bucket = _bucket()
+
+    if ARTIFACTS_DB_PATH.exists():
+        bucket.blob("artifacts.db").upload_from_filename(str(ARTIFACTS_DB_PATH))
+
+    for html_file in ARTIFACTS_DIR.glob("*.html"):
+        bucket.blob(f"artifacts/{html_file.name}").upload_from_filename(str(html_file))
 
 class _TagChecker(HTMLParser):
     """Minimal parser that detects unclosed or out-of-order tags."""

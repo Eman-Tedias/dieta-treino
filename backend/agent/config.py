@@ -16,13 +16,24 @@ logging.basicConfig(
 for noisy in ("httpx", "httpcore", "google_genai.models"):
     logging.getLogger(noisy).setLevel(logging.WARNING)
 
-model = ChatGoogleGenerativeAI(
-    model="gemini-3.5-flash-lite",
-    temperature=1.0,
-    max_tokens=None,
-    timeout=None,
-    max_retries=2,
-)
+PRIMARY_MODEL = "gemini-3.5-flash-lite"
+FALLBACK_MODEL = "gemini-3.1-flash-lite"
+
+
+def _gemini(model_name: str) -> ChatGoogleGenerativeAI:
+    return ChatGoogleGenerativeAI(
+        model=model_name,
+        temperature=1.0,
+        max_tokens=None,
+        timeout=None,
+        max_retries=2,
+    )
+
+
+# Gemini's flash-lite tier throws transient 503s ("high demand") fairly often,
+# and 429s once the free-tier per-minute quota is hit. with_fallbacks retries
+# the whole call on the previous generation instead of failing the request.
+model = _gemini(PRIMARY_MODEL).with_fallbacks([_gemini(FALLBACK_MODEL)])
 
 embedding_model = GoogleGenerativeAIEmbeddings(
     model="gemini-embedding-2-preview"

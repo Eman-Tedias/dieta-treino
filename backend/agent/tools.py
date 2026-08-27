@@ -19,6 +19,7 @@ from utils import (
     render_artifact,
     save_dashboard_metadata,
     static_validation,
+    sync_to_bucket,
 )
 from schemas import HarpyResult
 from config import embedding_model
@@ -114,6 +115,7 @@ def generate_dashboard(
         data_json=dados_json,
         url=artifact["url"],
     )
+    sync_to_bucket()
     elapsed = time.perf_counter() - start
     logger.info("generate_dashboard done in %.2fs -> %s", elapsed, artifact["url"])
     return json.dumps(artifact)

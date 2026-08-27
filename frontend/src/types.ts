@@ -10,3 +10,8 @@ export interface ChatResponse {
   answer: string;
   artifact_url: string | null;
 }
+
+export interface SessionStatus {
+  authenticated: boolean;
+  auth_required: boolean;
+}
